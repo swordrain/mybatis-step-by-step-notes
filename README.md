@@ -1042,7 +1042,9 @@ Oracle通过特殊配置获得列的注释信息
     <property name="forceBigDecimals" value="true" />
 </javaTypeResolver>
 ```
+
 #### javaModelGenerator
+
 用来控制生成的实体类，根据`<context>`中配置的defaultModelType，一个表可能会对应生成多个不同的实体类。一个表对应多个类实际上并不方便，所以前面也推荐使用flat，这种情况下一个表对应一个实体类。
 
 该元素只有两个属性，都是必选的。
@@ -1059,6 +1061,8 @@ Oracle通过特殊配置获得列的注释信息
 		* 属性有getter方法
 		* 属性有setter方法
 	* trimStrings:是否对数据库查询结果进行trim操作，如果设置为true就会生成类似这样`public void setUsername(String username) {this.username = username == null ? null : username.trim();}`的setter方法。默认值为false。
+
+
 配置示例如下：
 
 ```
@@ -1067,7 +1071,9 @@ Oracle通过特殊配置获得列的注释信息
     <property name="trimStrings" value="true" />
 </javaModelGenerator>
 ```
+
 #### sqlMapGenerator
+
 用于配置Mapper.xml的属性。如果`targetRuntime`设置为MyBatis3，则只有当`javaClientGenerator`配置需要XML时，该标签才必须配置一个，如果没有配置`javaClientGenerator`，则使用以下规则
 
 * 如果指定了一个sqlMapGenerator，那么MBG将只生成XML的SQL映射文件和实体类
@@ -1084,3 +1090,335 @@ Oracle通过特殊配置获得列的注释信息
 	<property name="enableSubPackage" value="false" />
 </sqlMapGenerator>
 ```
+#### javaClientGenerator
+用于配置Mapper接口的属性
+
+该元素有3个必选属性：
+
+* type:该属性用于选择一个预定义的客户端代码（可以理解为Mapper接口）生成器，用户可以自定义实现，需要继承`org.mybatis.generator.codegen.AbstractJavaClientGenerator`类，必选有一个默认的构造方法。 该属性提供了以下预定的代码生成器，首先根据<context>的targetRuntime分成三类：
+	* MyBatis3:
+		* ANNOTATEDMAPPER:基于注解的Mapper接口，不会有对应的XML映射文件
+		* MIXEDMAPPER:XML和注解的混合形式，(上面这种情况中的)SqlProvider注解方法会被XML替代。
+		* XMLMAPPER:所有的方法都在XML中，接口调用依赖XML文件。
+	* MyBatis3Simple:
+		* ANNOTATEDMAPPER:基于注解的Mapper接口，不会有对应的XML映射文件
+		* XMLMAPPER:所有的方法都在XML中，接口调用依赖XML文件。
+	* Ibatis2Java2或Ibatis2Java5:
+		* IBATIS:生成的对象符合iBATIS的DAO框架（不建议使用）。
+		* GENERIC-CI:生成的对象将只依赖于SqlMapClient，通过构造方法注入。
+		* GENERIC-SI:生成的对象将只依赖于SqlMapClient，通过setter方法注入。
+		* SPRING:生成的对象符合Spring的DAO接口
+* targetPackage:生成实体类存放的包名，一般就是放在该包下。实际还会受到其他配置的影响(`<table>`中会提到)。
+* targetProject:指定目标项目路径，可以是绝对路径或相对路径（如 `targetProject="src/main/java"`）。
+该元素还有一个可选属性：
+
+* implementationPackage:如果指定了该属性，实现类就会生成在这个包中。
+
+该元素支持<property>子元素设置的属性：
+
+* enableSubPackages
+* exampleMethodVisibility
+* methodNameCalculator
+* rootInterface
+* useLegacyBuilder
+
+配置示例：
+
+```
+<javaClientGenerator type="XMLMAPPER" targetPackage="test.dao"
+              targetProject="src\main\java"/>
+```
+
+#### table
+用来配置需要通过内省数据库的表，只有配置的才会生成实体类和其他文件
+
+必选属性`tableName`：指定要生成的表名，可以使用SQL通配符匹配多个表。
+
+```
+<table tableName="%" />
+```
+
+可选属性
+
+* schema:数据库的schema,可以使用SQL通配符匹配。如果设置了该值，生成SQL的表名会变成如schema.tableName的形式。
+* catalog:数据库的catalog，如果设置了该值，生成SQL的表名会变成如catalog.tableName的形式。
+* alias:如果指定，这个值会用在生成的select查询SQL的表的别名和列名上。 列名会被别名为 alias_actualColumnName(别名_实际列名) 这种模式。
+* domainObjectName:生成对象的基本名称。如果没有指定，MBG会自动根据表名来生成名称。
+* enableXXX:XXX代表多种SQL方法，该属性用来指定是否生成对应的XXX语句。
+* selectByPrimaryKeyQueryId:DBA跟踪工具会用到，具体请看详细文档。
+* selectByExampleQueryId:DBA跟踪工具会用到，具体请看详细文档。
+* modelType:和<context>的defaultModelType含义一样，这里可以针对表进行配置，这里的配置会覆盖<context>的defaultModelType配置。
+* escapeWildcards:这个属性表示当查询列，是否对schema和表名中的SQL通配符 ('_' and '%') 进行转义。 对于某些驱动当schema或表名中包含SQL通配符时（例如，一个表名是MY_TABLE，有一些驱动需要将下划线进行转义）是必须的。默认值是false。
+* delimitIdentifiers:是否给标识符增加**分隔符**。默认false。当catalog,schema或tableName中包含空白时，默认为true。
+* delimitAllColumns:是否对所有列添加**分隔符**。默认false。
+
+`<table>`包含多个可用的<property>子元素，可选属性
+
+* constructorBased:和<javaModelGenerator>中的属性含义一样。
+* ignoreQualifiersAtRuntime:生成的SQL中的表名将不会包含schema和catalog前缀。
+* immutable:和<javaModelGenerator>中的属性含义一样。
+* modelOnly:此属性用于配置是否为表只生成实体类。如果设置为true就不会有Mapper接口。如果配置了<sqlMapGenerator>，并且modelOnly为true，那么XML映射文件中只有实体对象的映射元素(<resultMap>)。如果为true还会覆盖属性中的enableXXX方法，将不会生成任何CRUD方法。
+* rootClass:和<javaModelGenerator>中的属性含义一样。
+* rootInterface:和<javaClientGenerator>中的属性含义一样。
+* runtimeCatalog:运行时的catalog，当生成表和运行环境的表的catalog不一样的时候可以使用该属性进行配置。
+* runtimeSchema:运行时的schema，当生成表和运行环境的表的schema不一样的时候可以使用该属性进行配置。
+* runtimeTableName:运行时的tableName，当生成表和运行环境的表的tableName不一样的时候可以使用该属性进行配置。
+* selectAllOrderByClause:该属性值会追加到selectAll方法后的SQL中，会直接跟order by拼接后添加到SQL末尾。
+* useActualColumnNames:如果设置为true,那么MBG会使用从数据库元数据获取的列名作为生成的实体对象的属性。 如果为false(默认值)，MGB将会尝试将返回的名称转换为驼峰形式。 在这两种情况下，可以通过 元素显示指定，在这种情况下将会忽略这个（useActualColumnNames）属性。
+* useColumnIndexes:如果是true,MBG生成resultMaps的时候会使用列的索引,而不是结果中列名的顺序。
+* useCompoundPropertyNames:如果是true,那么MBG生成属性名的时候会将列名和列备注接起来. 这对于那些通过第四代语言自动生成列(例如:FLD22237),但是备注包含有用信息(例如:"customer id")的数据库来说很有用. 在这种情况下,MBG会生成属性名FLD2237_CustomerId。
+
+`<table>`还包含以下子元素：
+
+* generatedKey (0个或1个)
+* columnRenamingRule (0个或1个)
+* columnOverride (0个或多个)
+* ignoreColumn (0个或多个)
+
+**generatedKey**
+
+这个元素用来指定自动生成主键的属性（identity字段或者sequences序列）。如果指定这个元素，MBG在生成insert的SQL映射文件中插入一个`<selectKey>`元素。 这个元素**非常重要**，这个元素包含下面两个必选属性：
+
+* column:生成列的列名。
+* sqlStatement:将返回新值的 SQL 语句。如果这是一个identity列，您可以使用其中一个预定义的的特殊值。预定义值如下：
+	* Cloudscape
+	* DB2
+	* DB2_MF
+	* Derby
+	* HSQLDB
+	* Informix
+	* MySql
+	* SqlServer
+	* SYBASE
+	* JDBC:这会配置MBG使用MyBatis3支持的JDBC标准的生成key来生成代码。 这是一个独立于数据库获取标识列中的值的方法。
+
+这个元素还包含两个可选属性：
+
+* identity:当设置为true时,该列会被标记为identity列， 并且`<selectKey>`元素会被插入在insert后面。 当设置为false时，`<selectKey>`会插入到insert之前（通常是序列）。**重要**: 即使您type属性指定为post，您仍然需要为identity列将该参数设置为true。 这将标志MBG从插入列表中删除该列。默认值是false。
+* type:type=post and identity=true的时候生成的`<selectKey>`中的order=AFTER,当type=pre的时候，identity只能为false，生成的`<selectKey>`中的order=BEFORE。可以这么理解，自动增长的列只有插入到数据库后才能得到ID，所以是AFTER,使用序列时，只有先获取序列之后，才能插入数据库，所以是BEFORE。
+
+配置示例一：
+
+```
+<table tableName="user login info" domainObjectName="UserLoginInfo">
+    <generatedKey column="id" sqlStatement="Mysql"/>
+</table>
+```
+对应的生成的结果：
+
+```
+<insert id="insert" parameterType="test.model.UserLoginInfo">
+    <selectKey keyProperty="id" order="AFTER" resultType="java.lang.Integer">
+        SELECT LAST_INSERT_ID()
+    </selectKey>
+    insert into `user login info` (Id, username, logindate, loginip)
+    values (#{id,jdbcType=INTEGER}, #{username,jdbcType=VARCHAR}, #{logindate,jdbcType=TIMESTAMP}, #{loginip,jdbcType=VARCHAR})
+</insert>
+```
+配置示例二：
+
+```
+<table tableName="user login info" domainObjectName="UserLoginInfo">
+    <generatedKey column="id" sqlStatement="select SEQ_ID.nextval from dual"/>
+</table>
+```
+对应的生成结果：
+
+```
+<insert id="insert" parameterType="test.model.UserLoginInfo">
+    <selectKey keyProperty="id" order="BEFORE" resultType="java.lang.Integer">
+        select SEQ_ID.nextval from dual
+    </selectKey>
+    insert into `user login info` (Id, username, logindate, loginip)
+    values (#{id,jdbcType=INTEGER}, #{username,jdbcType=VARCHAR}, #{logindate,jdbcType=TIMESTAMP},#{loginip,jdbcType=VARCHAR})
+</insert>
+```
+
+**columnRenamingRule**
+
+使用该元素可以在生成列之前，对列进行重命名。这对那些存在同一前缀的字段想在生成属性名时去除前缀的表非常有用。 例如假设一个表包含以下的列：
+
+* CUST_BUSINESS_NAME
+* CUST_STREET_ADDRESS
+* CUST_CITY
+* CUST_STATE
+
+生成的所有属性名中如果都包含CUST的前缀可能会让人不爽。这些前缀可以通过如下方式定义重命名规则:
+
+```
+<columnRenamingRule searchString="^CUST_" replaceString="" />
+```
+
+注意，在内部，MBG使用`java.util.regex.Matcher.replaceAll`方法实现这个功能。 请参阅有关该方法的文档和在Java中使用正则表达式的例子。
+
+当`<columnOverride>`匹配一列时，这个元素（`<columnRenamingRule>`）会被忽略。`<columnOverride>`优先于重命名的规则。
+
+该元素有一个必选属性：
+
+* searchString:定义将被替换的字符串的正则表达式。
+
+该元素有一个可选属性：
+
+* replaceString:这是一个用来替换搜索字符串列每一个匹配项的字符串。如果没有指定，就会使用空字符串。
+关于`<table>`的`<property>`属性`useActualColumnNames`对此的影响可以查看完整文档。
+
+**columnOverride**
+
+该元素从将某些属性默认计算的值更改为指定的值。
+
+该元素有一个必选属性:
+
+* column:要重写的列名。
+
+该元素有多个可选属性：
+
+* property:要使用的Java属性的名称。如果没有指定，MBG会根据列名生成。 例如，如果一个表的一列名为STRT_DTE，MBG会根据`<table>`的`useActualColumnNames`属性生成STRT_DTE或strtDte。
+* javaType:该列属性值为完全限定的Java类型。如果需要，这可以覆盖由JavaTypeResolver计算出的类型。 对某些数据库来说，这是必要的用来处理**奇怪的**数据库类型（例如MySql的unsigned bigint类型需要映射为java.lang.Object)。
+* jdbcType:该列的JDBC类型(INTEGER, DECIMAL, NUMERIC, VARCHAR等等)。 如果需要，这可以覆盖由JavaTypeResolver计算出的类型。 对某些数据库来说，这是必要的用来处理怪异的JDBC驱动 (例如DB2的LONGVARCHAR类型需要为iBATIS 映射为VARCHAR)。
+* typeHandler:用户定义的需要用来处理这列的类型处理器。它必须是一个继承iBATIS的TypeHandler类或TypeHandlerCallback接口（该接口很容易继承）的全限定的类名。如果没有指定或者是空白，iBATIS会用默认的类型处理器来处理类型。**重要**:MBG不会校验这个类型处理器是否存在或者可用。 MGB只是简单的将这个值插入到生成的SQL映射的配置文件中。
+* delimitedColumnName:指定是否应在生成的SQL的列名称上增加**分隔符**。 如果列的名称中包含空格，MGB会自动添加**分隔符**， 所以这个重写只有当列名需要强制为一个合适的名字或者列名是数据库中的保留字时是必要的。
+
+配置示例：
+
+```
+<table schema="DB2ADMIN" tableName="ALLTYPES" >
+    <columnOverride column="LONG_VARCHAR_FIELD" javaType="java.lang.String" jdbcType="VARCHAR" />
+</table>
+```
+
+**ignoreColumn**
+
+该元素可以用来屏蔽不需要生成的列。
+
+该元素有一个必选属性：
+
+* column:要忽略的列名。
+
+该元素还有一个可选属性：
+
+* delimitedColumnName:匹配列名的时候是否区分大小写。如果为true则区分。默认值为false，不区分大小写。
+
+### 运行MyBatis Generator
+#### 使用Java编写代码运行
+添加jar包或添加依赖
+
+```
+<dependency>
+	<groupId>org.mybatis.generator</groupId>
+	<artifactId>mybatis-generator-core</artifactId>
+	<version>1.3.3</version>
+</dependency>
+```
+
+```
+public class Generator {
+
+	public static void main(String[] args) throws Exception {
+		//MBG 执行过程中的警告信息
+		List<String> warnings = new ArrayList<String>();
+		//当生成的代码重复时，覆盖原代码
+		boolean overwrite = true;
+		//读取我们的 MBG 配置文件
+		InputStream is = Generator.class.getResourceAsStream("/generator/generatorConfig.xml");
+		ConfigurationParser cp = new ConfigurationParser(warnings);
+		Configuration config = cp.parseConfiguration(is);
+		is.close();
+		
+		DefaultShellCallback callback = new DefaultShellCallback(overwrite);
+		//创建 MBG
+		MyBatisGenerator myBatisGenerator = new MyBatisGenerator(config, callback, warnings);
+		//执行生成代码
+		myBatisGenerator.generate(null);
+		//输出警告信息
+		for(String warning : warnings){
+			System.out.println(warning);
+		}
+	}
+}
+```
+
+#### 从命令提示符运行
+必须使用jar包，将jar和generatorConfig.xml文件放一起，将MySQL的JDBC驱动（mysql-connector-java-5.1.38.jar）放到当前目录中，然后配置文件中加上classPathEntry
+
+```
+<generatorConfiguration>
+	<classPathEntry location="mysql-connector-java-5.1.38.jar" />
+	<context id="MysqlContext" targetRuntime="MyBatis3Simple" defaultModelType="flat">
+		...
+	</context>
+</generatorConfiguration>
+```
+
+在当前目录中添加文件夹结构如下
+
+```
+src  
+|__main
+	|__java
+	|__resources
+```
+
+MBG命令行的参数
+
+* -configfile fileName
+* -overwrite
+* -verbose
+* -forceJavaLogging
+* -contextids context1, context2, ...
+* -tables table1, table2, ...
+
+```
+java -Dfile.encoding=UTF-8 -jar mybatis-generator-core-1.3.3.jar -configfile generatorConfig.xml -overwrite
+```
+
+#### 使用Maven Plugin运行
+```
+<plugin>
+	<groupId>org.mybatis.generator</groupId>
+	<artifactId>mybatis-generator-maven-plugin</artifactId>
+	<version>1.3.3</version>
+	<configuration>
+		<configurationFile>
+			${basedir}/src/main/resources/generator/generatorConfig.xml
+		</configurationFile>
+		<overwrite>true</overwrite>
+		<verbose>true</verbose>
+	</configuration>
+	<dependencies>
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.1.38</version>
+		</dependency>
+		<dependency>
+			<groupId>tk.mybatis</groupId>
+			<artifactId>simple</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+	</dependencies>
+</plugin>
+```
+
+使用Maven命令`mvn mybatis-generator:generate`
+
+#### 使用Eclipse插件运行
+MBG的Eclipse插件支持`@mbggenerated`标记，这个标记表示是由MBG生成的，重新生成时会被覆盖，没有这个标记表示是手动生成，不应该被覆盖
+
+到https://github.com/mybatis/generator/release下载插件，在Eclipse里的Help菜单中的Install New Software里安装
+
+修改配置文件
+
+```
+<generatorConfiguration>
+	<classPathEntry location="mysql-connector-java-5.1.38.jar" />
+	<context id="MysqlContext" targetRuntime="MyBatis3Simple" defaultModelType="flat">
+		<property name="beginningDelimiter" value="`">
+		<property name="endingDelimiter" value="`">
+		<property name="javaFileEncoding" value="UTF-8">
+	</context>
+</generatorConfiguration>
+```
+
+在和targetProject有关的相对路径中需要增加当前的项目名称，将`src\main\java`改为`simple\src\main\java`，将`src\main\resources`改为`simple\src\main\resources`
+
+最后在配置文件上右键 -> Generate MyBatis
